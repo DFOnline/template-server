@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 /**
  * Welcome to Cloudflare Workers! This is your first worker.
  *
@@ -33,7 +35,18 @@ export default {
 					return new Response(`${(template.template)}`)
 				}
 				case 'POST': {
-
+					const data = await request.text();
+					const dupe = await dupeCheck(env,data);
+					if(dupe != null) return new Response(`${JSON.stringify({'id':dupe.id})}`,{headers:{'Content-Type':'application/json'}});
+					const buf = Buffer.alloc(12);
+					while (true) {
+						crypto.getRandomValues(buf);
+						if(await getTemplate(env,buf.toString('base64url')) == null) break;
+					}
+					const id = buf.toString('base64url');
+					const delete_key = crypto.getRandomValues(Buffer.alloc(8)).toString('base64url');
+					uploadTemplate(env,data,id,delete_key);
+					return new Response(`${JSON.stringify({id,delete_key})}`,{headers:{'Content-Type':'application/json'}});
 				}
 				case 'DELETE': {
 					if(path[2] == undefined) return new Response('/template/<id>',{'status':400});
@@ -57,6 +70,14 @@ export default {
 
 async function getTemplate(env: Env, id: string) {
 	return await env.DB.prepare('SELECT * FROM templates WHERE (id == ?)').bind(id).first<Template>();
+}
+
+async function dupeCheck(env: Env, template: string) {
+	return await env.DB.prepare('SELECT * FROM templates WHERE (template == ?)').bind(template).first<Template>();
+}
+
+async function uploadTemplate(env: Env, template: string, id: string, delete_key: string) {
+	return await env.DB.prepare('INSERT INTO templates (id, template, delete_key) VALUES (?, ?, ?)').bind(id,template,delete_key).run();
 }
 
 async function deleteTemplate(env: Env, id: string) {
