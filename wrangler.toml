@@ -3,7 +3,6 @@ name = "template-server"
 main = "src/index.ts"
 compatibility_date = "2024-06-20"
 compatibility_flags = ["nodejs_compat"]
-node_compat = true
 
 [[d1_databases]]
 binding = "DB" # i.e. available in your Worker on env.DB

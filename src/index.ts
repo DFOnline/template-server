@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { Inflate, inflate } from 'pako'
 
 /**
  * Welcome to Cloudflare Workers! This is your first worker.
@@ -23,8 +24,7 @@ interface Template {
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url = new URL(request.url)
-		const path = url.pathname.split('/');
-		console.log(url.pathname)
+		const path = url.pathname.replace(/^(\/(?=\/))+/,'').split('/');
 		if(path[1] == 'template') {
 			switch(request.method) {
 				case 'GET': {
@@ -38,6 +38,13 @@ export default {
 					const data = await request.text();
 					const dupe = await dupeCheck(env,data);
 					if(dupe != null) return new Response(`${JSON.stringify({'id':dupe.id})}`,{headers:{'Content-Type':'application/json'}});
+					const inflated = inflate(Buffer.from(data,'base64'),{to:'string'});
+					try {
+						if(!((JSON.parse(inflated).blocks) instanceof Array)) return new Response('400',{'status':400});
+					}
+					catch {
+						return new Response('400',{'status':400});
+					}
 					const buf = Buffer.alloc(12);
 					while (true) {
 						crypto.getRandomValues(buf);
