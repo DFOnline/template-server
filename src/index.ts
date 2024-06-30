@@ -21,13 +21,19 @@ interface Template {
 	delete_by: number | null,
 }
 
-const headers = {
-	'Access-Control-Allow-Origin': 'https://dfonline.dev'
+function domain(url: URL) {
+	if(url.hostname.endsWith('dfonline.dev')) return `${url.protocol}//${url.hostname}`;
+	return undefined;
 }
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const url = new URL(request.url)
+		const url = new URL(request.url);
+		const origin = request.headers.get('origin');
+		const originURL = origin ? domain(new URL(origin)) : 'https://dfonline.dev';
+		const headers = originURL ? {
+			'Access-Control-Allow-Origin': originURL
+		} : {} as Record<string,string>;
 		const path = url.pathname.replace(/^(\/(?=\/))+/,'').split('/');
 		if(path[1] == 'template') {
 			switch(request.method) {
@@ -74,7 +80,6 @@ export default {
 		else {
 			return new Response('404',{'status':404});
 		}
-		console.log(request.method)
 		return new Response('Hello World!');
 	},
 } satisfies ExportedHandler<Env>;
