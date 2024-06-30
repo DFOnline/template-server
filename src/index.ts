@@ -21,6 +21,10 @@ interface Template {
 	delete_by: number | null,
 }
 
+const headers = {
+	'Access-Control-Allow-Origin': 'https://dfonline.dev'
+}
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url = new URL(request.url)
@@ -28,22 +32,22 @@ export default {
 		if(path[1] == 'template') {
 			switch(request.method) {
 				case 'GET': {
-					if(path[2] == undefined) return new Response('/template/<id>',{'status':400});
+					if(path[2] == undefined) return new Response('/template/<id>',{'status':400,headers});
 					const id = path[2];
 					const template = await getTemplate(env,id);
-					if(template == null) return new Response('404',{'status':404});
-					return new Response(`${(template.template)}`)
+					if(template == null) return new Response('404',{'status':404,headers});
+					return new Response(`${(template.template)}`,{headers})
 				}
 				case 'POST': {
 					const data = await request.text();
 					const dupe = await dupeCheck(env,data);
-					if(dupe != null) return new Response(`${JSON.stringify({'id':dupe.id})}`,{headers:{'Content-Type':'application/json'}});
+					if(dupe != null) return new Response(`${JSON.stringify({'id':dupe.id})}`,{headers:{...headers,'Content-Type':'application/json'}});
 					const inflated = inflate(Buffer.from(data,'base64'),{to:'string'});
 					try {
-						if(!((JSON.parse(inflated).blocks) instanceof Array)) return new Response('400',{'status':400});
+						if(!((JSON.parse(inflated).blocks) instanceof Array)) return new Response('400',{'status':400,headers});
 					}
 					catch {
-						return new Response('400',{'status':400});
+						return new Response('400',{'status':400,headers});
 					}
 					const buf = Buffer.alloc(12);
 					while (true) {
@@ -53,17 +57,17 @@ export default {
 					const id = buf.toString('base64url');
 					const delete_key = crypto.getRandomValues(Buffer.alloc(8)).toString('base64url');
 					uploadTemplate(env,data,id,delete_key);
-					return new Response(`${JSON.stringify({id,delete_key})}`,{headers:{'Content-Type':'application/json'}});
+					return new Response(`${JSON.stringify({id,delete_key})}`,{headers:{...headers,'Content-Type':'application/json'}});
 				}
 				case 'DELETE': {
-					if(path[2] == undefined) return new Response('/template/<id>',{'status':400});
+					if(path[2] == undefined) return new Response('/template/<id>',{'status':400,headers});
 					const id = path[2];
 					const template = await getTemplate(env,id);
-					if(template == null) return new Response('404',{'status':404});
-					if(template.delete_key == null) return new Response('403',{'status':403});
-					if(url.searchParams.get('key') != template.delete_key) return new Response('401',{'status':401});
+					if(template == null) return new Response('404',{'status':404,headers});
+					if(template.delete_key == null) return new Response('403',{'status':403,headers});
+					if(url.searchParams.get('key') != template.delete_key) return new Response('401',{'status':401,headers});
 					deleteTemplate(env,id);
-					return new Response('200 OK\nDeleted.',{'status':200});
+					return new Response('200 OK\nDeleted.',{'status':200,headers});
 				}
 			}
 		}
